@@ -1,11 +1,13 @@
 // ============================================================
-// APP.JS - v5 : vérification "déjà possédé" en TEMPS RÉEL
+// APP.JS - v6 : cascade BnF -> Google Books -> Open Library
 // ============================================================
-// Correction v5 : la liste affichée vient du CSV publié, que Google
-// met en cache plusieurs minutes. Au scan, on ne se contente plus de
-// cette photo périmée : on redemande la base en direct à Apps Script.
+// La BnF (Bibliothèque nationale de France) catalogue quasiment tous
+// les livres publiés en France : c'est notre meilleure source pour
+// les albums jeunesse. Comme le navigateur n'a pas le droit de
+// l'interroger directement (CORS), c'est notre Apps Script qui le
+// fait pour nous (rôle de "serveur proxy").
 
-const VERSION = "v5";
+const VERSION = "v6";
 
 let livres = [];
 let scanner = null;
@@ -41,10 +43,14 @@ function normaliser(s) {
     .trim();
 }
 
-// Un ISBN peut s'écrire 978-2-211-… ou 978 2 211… : pour comparer
-// deux ISBN, on ne garde QUE les chiffres des deux côtés.
 function isbnChiffres(s) {
   return (s || "").replace(/\D/g, "");
+}
+
+function scriptConfigue() {
+  return typeof SCRIPT_URL !== "undefined" &&
+         SCRIPT_URL.indexOf("http") === 0 &&
+         SCRIPT_URL !== "A_COLLER_ICI_APPS_SCRIPT";
 }
 
 // ============================================================
@@ -90,20 +96,13 @@ function rechercheCorrespond(livre, q) {
   return q.split(" ").every(mot => cible.includes(mot));
 }
 
-// NOUVEAUTÉ v5 : recharger la base EN DIRECT depuis Apps Script
-// (lecture de la vraie sheet, sans le cache du CSV publié).
 async function rafraichirEnDirect() {
-  if (typeof SCRIPT_URL === "undefined" ||
-      SCRIPT_URL === "A_COLLER_ICI_APPS_SCRIPT" || SCRIPT_URL.indexOf("http") !== 0) {
-    return false; // pas configuré : on reste sur la liste locale
-  }
+  if (!scriptConfigue()) return false;
   try {
     const reponse = await fetch(SCRIPT_URL, { method: "GET" });
     if (!reponse.ok) return false;
     const donnees = await reponse.json();
     if (donnees && donnees.livres && donnees.livres.length) {
-      // On remplace la liste locale par les données toutes fraîches,
-      // et on rafraîchit l'affichage (compteur, filtres, liste).
       livres = donnees.livres;
       remplirFiltres();
       afficher();
@@ -247,9 +246,21 @@ function chercherISBNManuel() {
 }
 
 // ============================================================
-// RETROUVER UN LIVRE À PARTIR DE SON ISBN
+// LA CASCADE DE SOURCES (v6 : BnF d'abord)
 // ============================================================
 
+// ---- Source 1 : BnF, via notre Apps Script (rôle de serveur) ----
+async function chercherSurBnf(isbn) {
+  if (!scriptConfigue()) return null;
+  const url = SCRIPT_URL + "?action=isbn&isbn=" + encodeURIComponent(isbn);
+  const reponse = await fetch(url);
+  if (!reponse.ok) return null;
+  const infos = await reponse.json();
+  if (infos && infos.titre) return infos;
+  return null;
+}
+
+// ---- Source 2 : Google Books ----
 async function chercherSurGoogleBooks(isbn) {
   const reponse = await fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:" + isbn + "&country=FR");
   if (!reponse.ok) return null;
@@ -265,6 +276,7 @@ async function chercherSurGoogleBooks(isbn) {
   };
 }
 
+// ---- Source 3 : Open Library ----
 async function chercherSurOpenLibrary(isbn) {
   const reponse = await fetch("https://openlibrary.org/isbn/" + isbn + ".json");
   if (!reponse.ok) return null;
@@ -286,7 +298,8 @@ async function chercherSurOpenLibrary(isbn) {
 }
 
 async function trouverInfosLivre(isbn) {
-  const sources = [chercherSurGoogleBooks, chercherSurOpenLibrary];
+  // Ordre de la cascade : la meilleure source pour le français d'abord.
+  const sources = [chercherSurBnf, chercherSurGoogleBooks, chercherSurOpenLibrary];
   for (const source of sources) {
     try {
       const infos = await source(isbn);
@@ -296,7 +309,7 @@ async function trouverInfosLivre(isbn) {
   return { titre: "", auteur: "", editeur: "", isbn: isbn, source: "" };
 }
 
-// ---- LE GRAND ORCHESTRATEUR (cœur de la correction v5) ----
+// ---- LE GRAND ORCHESTRATEUR ----
 async function chercherISBN(isbn) {
   isbn = isbnChiffres(isbn);
   document.getElementById("isbn-manuel").value = "";
@@ -306,12 +319,10 @@ async function chercherISBN(isbn) {
     return;
   }
 
-  // Étape 1 : l'a-t-on déjà, dans la liste locale ?
+  // Étape 1 : déjà dans la liste locale ?
   let deja = livres.find(l => isbnChiffres(l.isbn) === isbn);
 
-  // Étape 2 (NOUVEAUTÉ v5) : pas trouvé ? La liste locale vient du CSV
-  // publié, qui peut être périmé de plusieurs minutes. On redemande la
-  // base EN DIRECT avant de conclure "non répertorié".
+  // Étape 2 : sinon, vérification en direct (la liste locale peut être périmée)
   if (!deja) {
     const verdict = document.getElementById("verdict");
     verdict.className = "nouveau";
@@ -336,10 +347,10 @@ async function chercherISBN(isbn) {
     return;
   }
 
-  // Étape 3 : vraiment non possédé -> cascade de recherche d'infos
+  // Étape 3 : non possédé -> cascade de recherche d'infos
   const verdict = document.getElementById("verdict");
   verdict.className = "nouveau";
-  verdict.innerHTML = "<h2>➕ Non répertorié</h2><p>Recherche des informations du livre…</p>";
+  verdict.innerHTML = "<h2>➕ Non répertorié</h2><p>Recherche des informations du livre… (BnF, Google Books, Open Library)</p>";
   afficherVue("verdict");
 
   const infos = await trouverInfosLivre(isbn);
@@ -374,7 +385,7 @@ function preparerFormulaire() {
 }
 
 // ============================================================
-// ENREGISTRER (avec garde-fou anti-doublon)
+// ENREGISTRER
 // ============================================================
 
 async function enregistrerLivre() {
@@ -396,15 +407,13 @@ async function enregistrerLivre() {
     montrer("erreur-ajout");
     return;
   }
-  if (typeof SCRIPT_URL === "undefined" || SCRIPT_URL === "A_COLLER_ICI_APPS_SCRIPT") {
+  if (!scriptConfigue()) {
     erreur.textContent = "⚠️ SCRIPT_URL n'est pas encore configuré dans config.js.";
     montrer("erreur-ajout");
     return;
   }
-
-  // Garde-fou : refuser d'enregistrer un ISBN déjà dans la base.
   if (livre.isbn.length >= 9 && livres.some(l => isbnChiffres(l.isbn) === livre.isbn)) {
-    erreur.textContent = "⚠️ Ce ISBN est déjà dans la bibliothèque ! (fais un scan de vérification)";
+    erreur.textContent = "⚠️ Cet ISBN est déjà dans la bibliothèque !";
     montrer("erreur-ajout");
     return;
   }
