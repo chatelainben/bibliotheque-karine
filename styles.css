@@ -1,5 +1,4 @@
-/* Mise en page pensée "mobile d'abord" :
-   le téléphone est l'usage principal de Karine. */
+/* Mise en page "mobile d'abord" */
 
 * { box-sizing: border-box; }
 
@@ -10,73 +9,96 @@ body {
   color: #222;
 }
 
-header {
-  background: #4a6da7;
-  color: #fff;
-  padding: 16px;
-  text-align: center;
-}
-
+header { background: #4a6da7; color: #fff; padding: 16px; text-align: center; }
 header h1 { margin: 0; font-size: 1.3rem; }
 header p  { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
 
-main {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 12px;
-}
+main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
 
 #recherche {
-  width: 100%;
-  padding: 14px;
-  font-size: 1.05rem;
-  border: 2px solid #4a6da7;
-  border-radius: 12px;
+  width: 100%; padding: 14px; font-size: 1.05rem;
+  border: 2px solid #4a6da7; border-radius: 12px;
 }
 
-.filtres {
-  display: flex;
-  gap: 8px;
-  margin: 10px 0;
-}
-
+.filtres { display: flex; gap: 8px; margin: 10px 0; }
 .filtres select {
-  flex: 1;
-  padding: 10px;
-  font-size: 0.95rem;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  background: #fff;
+  flex: 1; padding: 10px; font-size: 0.95rem;
+  border: 1px solid #ccc; border-radius: 10px; background: #fff;
 }
 
-#liste {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
+#liste { list-style: none; padding: 0; margin: 0; }
 
 .livre {
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
-
 .livre h2 { margin: 0 0 4px; font-size: 1.02rem; }
 .livre .auteur { margin: 0; color: #555; font-size: 0.92rem; }
 .livre .meta { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .livre .meta span {
-  font-size: 0.78rem;
-  background: #e8eefb;
-  color: #2c4a7c;
-  border-radius: 999px;
-  padding: 3px 10px;
+  font-size: 0.78rem; background: #e8eefb; color: #2c4a7c;
+  border-radius: 999px; padding: 3px 10px;
 }
 
 #vide { text-align: center; color: #777; padding: 24px 0; }
 
-.deja-possede {
-  background: #e6f7e6;
-  border-left: 5px solid #2e9e2e;
+.deja-possede { background: #e6f7e6; border-left: 5px solid #2e9e2e; }
+
+/* ---- Bouton flottant d'ajout ---- */
+#btn-ajouter {
+  position: fixed; bottom: 20px; right: 20px; z-index: 10;
+  background: #2e9e2e; color: #fff; border: none; border-radius: 999px;
+  padding: 14px 22px; font-size: 1rem; font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
+
+/* ---- Modale d'ajout ---- */
+#modale {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 20;
+  display: flex; align-items: flex-end;
+}
+@media (min-width: 640px) { #modale { align-items: center; justify-content: center; } }
+
+.modale-contenu {
+  background: #fff; width: 100%; max-width: 480px; max-height: 92vh;
+  overflow-y: auto; border-radius: 20px 20px 0 0; padding: 18px;
+}
+@media (min-width: 640px) { .modale-contenu { border-radius: 20px; } }
+
+.modale-contenu h2 { margin: 4px 0 12px; font-size: 1.1rem; }
+
+#lecteur { border-radius: 12px; overflow: hidden; }
+.indication { color: #666; font-size: 0.88rem; margin: 14px 0 6px; }
+
+#isbn-manuel {
+  width: 65%; padding: 12px; font-size: 1rem;
+  border: 2px solid #4a6da7; border-radius: 10px;
+}
+#btn-isbn-manuel {
+  width: 30%; padding: 12px; font-size: 1rem; margin-left: 2%;
+  background: #4a6da7; color: #fff; border: none; border-radius: 10px;
+}
+
+/* Le verdict après scan */
+#verdict.possede {
+  background: #e6f7e6; border-left: 5px solid #2e9e2e;
+  padding: 12px; border-radius: 10px;
+}
+#verdict.nouveau {
+  background: #eef4ff; border-left: 5px solid #4a6da7;
+  padding: 12px; border-radius: 10px;
+}
+
+/* Formulaire */
+label { display: block; font-size: 0.85rem; color: #555; margin-top: 10px; }
+label input, label select {
+  display: block; width: 100%; margin-top: 4px; padding: 11px;
+  font-size: 1rem; border: 1px solid #bbb; border-radius: 10px;
+}
+
+.boutons { display: flex; gap: 10px; margin-top: 16px; }
+button { padding: 11px 16px; border-radius: 10px; border: 1px solid #ccc; background: #fff; font-size: 0.95rem; }
+button.principal { background: #2e9e2e; color: #fff; border: none; flex: 1; }
+.fermer { display: block; margin: 18px auto 0; color: #888; }
+
+#erreur-ajout { color: #b00; font-size: 0.9rem; }
