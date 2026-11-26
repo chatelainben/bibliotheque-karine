@@ -1,0 +1,83 @@
+/* Mise en page pensée "mobile d'abord" :
+   le téléphone est l'usage principal de Karine. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f6fa;
+  color: #222;
+}
+
+header {
+  background: #4a6da7;
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+}
+
+header h1 { margin: 0; font-size: 1.3rem; }
+header p  { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
+
+main {
+  max-width: 640px;       /* sur grand écran, on limite la largeur */
+  margin: 0 auto;         /* et on centre */
+  padding: 12px;
+}
+
+#recherche {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.05rem;
+  border: 2px solid #4a6da7;
+  border-radius: 12px;
+}
+
+.filtres {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.filtres select {
+  flex: 1;
+  padding: 10px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: #fff;
+}
+
+#liste {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.livre {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.livre h2 { margin: 0 0 4px; font-size: 1.02rem; }
+.livre .auteur { margin: 0; color: #555; font-size: 0.92rem; }
+.livre .meta { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.livre .meta span {
+  font-size: 0.78rem;
+  background: #e8eefb;
+  color: #2c4a7c;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+#vide { text-align: center; color: #777; padding: 24px 0; }
+
+/* Le bandeau vert quand l'ISBN scanné/collé est déjà possédé */
+.deja-possede {
+  background: #e6f7e6;
+  border-left: 5px solid #2e9e2e;
+}

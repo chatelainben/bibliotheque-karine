@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4a6da7">
+  <title>Bibliothèque de Karine</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>📚 Bibliothèque de Karine</h1>
+    <p id="compteur">Chargement…</p>
+  </header>
+
+  <main>
+    <!-- La barre de recherche : l'utilisateur tape, la liste se filtre en direct -->
+    <input id="recherche" type="search" placeholder="Titre, auteur, ISBN…"
+           autocomplete="off" autocapitalize="none">
+
+    <!-- Filtres par thème et niveau -->
+    <div class="filtres">
+      <select id="filtre-theme"><option value="">Tous les thèmes</option></select>
+      <select id="filtre-niveau"><option value="">Tous les niveaux</option></select>
+    </div>
+
+    <!-- La liste des livres, remplie par app.js -->
+    <ul id="liste"></ul>
+
+    <p id="vide" hidden>Aucun livre ne correspond à cette recherche.</p>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

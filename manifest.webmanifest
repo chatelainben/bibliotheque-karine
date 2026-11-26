@@ -1,0 +1,9 @@
+{
+  "name": "Bibliothèque de Karine",
+  "short_name": "Livres Karine",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#4a6da7",
+  "icons": []
+}
