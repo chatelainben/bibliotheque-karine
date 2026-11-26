@@ -6,4 +6,4 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQwXHPVdKs06gni
 
 // 2) URL de l'application web Apps Script (voir Code.gs et les instructions)
 //    Après le déploiement, colle ici l'URL qui finit par ".../exec"
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxldRh5yv5nlStkXOvttcS33tfF7bgC4r0pEzBPdFSVLCArNgqiRv5i_Hy0KrAgDbQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxkKkEGcmesH1WUXGcl57xXai5_tpZ9eUtfjT2IPE4a57oGxQZanyujrJUCy31iwLzv/exec";
