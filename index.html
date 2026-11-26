@@ -15,19 +15,13 @@
   </header>
 
   <main>
-    <!-- La barre de recherche : l'utilisateur tape, la liste se filtre en direct -->
     <input id="recherche" type="search" placeholder="Titre, auteur, ISBN…"
            autocomplete="off" autocapitalize="none">
-
-    <!-- Filtres par thème et niveau -->
     <div class="filtres">
       <select id="filtre-theme"><option value="">Tous les thèmes</option></select>
       <select id="filtre-niveau"><option value="">Tous les niveaux</option></select>
     </div>
-
-    <!-- La liste des livres, remplie par app.js -->
     <ul id="liste"></ul>
-
     <p id="vide" hidden>Aucun livre ne correspond à cette recherche.</p>
   </main>
 

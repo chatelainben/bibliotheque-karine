@@ -18,7 +18,6 @@ async function chargerLivres() {
 }
 
 // --- 3. Convertir du texte CSV en liste d'objets.
-// Un CSV est du texte : "Titre,Auteur,..." ligne par ligne.
 // Le piège : certaines virgules sont DANS un champ entre guillemets
 // (ex. : "Le roi, la poule et..."). On ne peut donc pas juste faire split(",").
 function parserCSV(texte) {
@@ -53,7 +52,7 @@ function parserCSV(texte) {
 function normaliser(s) {
   return (s || "").toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // retire les accents
-    .replace(/[''-]/g, " ")                             // apostrophes/tirets = espaces
+    .replace(/['’-]/g, " ")                            // apostrophes/tirets = espaces
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -84,27 +83,28 @@ function afficher() {
   for (const l of resultats) {
     const li = document.createElement("li");
     li.className = "livre";
-    // Si la recherche ressemble à un ISBN trouvé exactement -> signaler "déjà possédé"
-    if (/^\d{9,13}$/.test(q.replace(/\s/g, "")) && l.isbn && l.isbn === q.replace(/\s/g, "")) {
+    // Si la recherche est un ISBN déjà possédé -> le signaler en vert
+    const qChiffres = q.replace(/\s/g, "");
+    if (/^\d{9,13}$/.test(qChiffres) && l.isbn && normaliser(l.isbn) === qChiffres) {
       li.classList.add("deja-possede");
     }
     const meta = [];
-    if (l.theme)  meta.push(`🏷️ ${l.theme}`);
-    if (l.niveau) meta.push(`🎓 ${l.niveau}`);
-    if (l.editeur) meta.push(`🏛️ ${l.editeur}`);
-    if (l.emplacement) meta.push(`📍 ${l.emplacement}`);
+    if (l.theme)  meta.push("🏷️ " + l.theme);
+    if (l.niveau) meta.push("🎓 " + l.niveau);
+    if (l.editeur) meta.push("🏛️ " + l.editeur);
+    if (l.emplacement) meta.push("📍 " + l.emplacement);
     li.innerHTML =
-      `<h2>${echapper(l.titre)}</h2>` +
-      `<p class="auteur">${echapper(l.auteur || "Auteur inconnu")}</p>` +
-      (meta.length ? `<div class="meta">${meta.map(m => `<span>${echapper(m)}</span>`).join("")}</div>` : "");
+      "<h2>" + echapper(l.titre) + "</h2>" +
+      "<p class=\"auteur\">" + echapper(l.auteur || "Auteur inconnu") + "</p>" +
+      (meta.length ? "<div class=\"meta\">" + meta.map(m => "<span>" + echapper(m) + "</span>").join("") + "</div>" : "");
     liste.appendChild(li);
   }
 
   document.getElementById("vide").hidden = resultats.length > 0;
   document.getElementById("compteur").textContent =
     q || theme || niveau
-      ? `${resultats.length} livre(s) trouvé(s) sur ${livres.length}`
-      : `${livres.length} livres référencés`;
+      ? resultats.length + " livre(s) trouvé(s) sur " + livres.length
+      : livres.length + " livres référencés";
 }
 
 // Sécurité de base : un titre contenant "<script>" ne doit pas être interprété.
@@ -114,7 +114,8 @@ function echapper(s) {
 
 // --- 6. Remplir les menus déroulants de filtres (thèmes/niveaux uniques).
 function remplirFiltres() {
-  for (const [id, cle] of [["filtre-theme", "theme"], ["filtre-niveau", "niveau"]]) {
+  const paires = [["filtre-theme", "theme"], ["filtre-niveau", "niveau"]];
+  for (const [id, cle] of paires) {
     const select = document.getElementById(id);
     const valeurs = [...new Set(livres.map(l => l[cle]).filter(Boolean))].sort();
     for (const v of valeurs) {

@@ -21,8 +21,8 @@ header h1 { margin: 0; font-size: 1.3rem; }
 header p  { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
 
 main {
-  max-width: 640px;       /* sur grand écran, on limite la largeur */
-  margin: 0 auto;         /* et on centre */
+  max-width: 640px;
+  margin: 0 auto;
   padding: 12px;
 }
 
@@ -76,7 +76,6 @@ main {
 
 #vide { text-align: center; color: #777; padding: 24px 0; }
 
-/* Le bandeau vert quand l'ISBN scanné/collé est déjà possédé */
 .deja-possede {
   background: #e6f7e6;
   border-left: 5px solid #2e9e2e;
