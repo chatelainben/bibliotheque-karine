@@ -1,5 +1,3 @@
-/* Mise en page "mobile d'abord" */
-
 * { box-sizing: border-box; }
 
 body {
@@ -9,9 +7,16 @@ body {
   color: #222;
 }
 
+/* Notre propre mécanisme de masquage : plus fiable que l'attribut HTML
+   "hidden", qui peut être annulé par un autre style sans qu'on s'en rende compte. */
+.invisible { display: none !important; }
+
 header { background: #4a6da7; color: #fff; padding: 16px; text-align: center; }
 header h1 { margin: 0; font-size: 1.3rem; }
+header h1 small { font-size: 0.7rem; opacity: 0.8; vertical-align: top; }
 header p  { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
+
+#erreur-globale { color: #ffd6d6; font-weight: bold; }
 
 main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
 
@@ -44,7 +49,6 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
 
 .deja-possede { background: #e6f7e6; border-left: 5px solid #2e9e2e; }
 
-/* ---- Bouton flottant d'ajout ---- */
 #btn-ajouter {
   position: fixed; bottom: 20px; right: 20px; z-index: 10;
   background: #2e9e2e; color: #fff; border: none; border-radius: 999px;
@@ -52,7 +56,6 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
-/* ---- Modale d'ajout ---- */
 #modale {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 20;
   display: flex; align-items: flex-end;
@@ -67,19 +70,15 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
 
 .modale-contenu h2 { margin: 4px 0 12px; font-size: 1.1rem; }
 
-#lecteur { border-radius: 12px; overflow: hidden; }
+#lecteur { border-radius: 12px; overflow: hidden; margin-top: 10px; }
 .indication { color: #666; font-size: 0.88rem; margin: 14px 0 6px; }
+#etat-scan { color: #555; font-size: 0.9rem; }
 
 #isbn-manuel {
   width: 65%; padding: 12px; font-size: 1rem;
   border: 2px solid #4a6da7; border-radius: 10px;
 }
-#btn-isbn-manuel {
-  width: 30%; padding: 12px; font-size: 1rem; margin-left: 2%;
-  background: #4a6da7; color: #fff; border: none; border-radius: 10px;
-}
 
-/* Le verdict après scan */
 #verdict.possede {
   background: #e6f7e6; border-left: 5px solid #2e9e2e;
   padding: 12px; border-radius: 10px;
@@ -89,16 +88,15 @@ main { max-width: 640px; margin: 0 auto; padding: 12px; padding-bottom: 80px; }
   padding: 12px; border-radius: 10px;
 }
 
-/* Formulaire */
 label { display: block; font-size: 0.85rem; color: #555; margin-top: 10px; }
 label input, label select {
   display: block; width: 100%; margin-top: 4px; padding: 11px;
   font-size: 1rem; border: 1px solid #bbb; border-radius: 10px;
 }
 
-.boutons { display: flex; gap: 10px; margin-top: 16px; }
+.boutons { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 button { padding: 11px 16px; border-radius: 10px; border: 1px solid #ccc; background: #fff; font-size: 0.95rem; }
 button.principal { background: #2e9e2e; color: #fff; border: none; flex: 1; }
-.fermer { display: block; margin: 18px auto 0; color: #888; }
+.fermer { color: #888; }
 
 #erreur-ajout { color: #b00; font-size: 0.9rem; }

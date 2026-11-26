@@ -1,17 +1,33 @@
 // ============================================================
-// APP.JS - v3 : recherche + scan + ajout, avec cascade de sources
-//              pour retrouver un livre à partir de son ISBN.
-//
-// La cascade :  1. Google Books  (excellente couverture de l'édition française)
-//               2. Open Library  (secours, surtout livres anglo-saxons)
-//               3. saisie manuelle (le filet de sécurité ultime)
+// APP.JS - v4 : corrections d'affichage + diagnostic + cascade ISBN
 // ============================================================
+
+const VERSION = "v4";
 
 let livres = [];
 let scanner = null;
 
+// ---- Filet de sécurité global : si une erreur JavaScript se produit
+// n'importe où, on l'affiche à l'écran au lieu de rester dans le vide.
+// (Un bouton qui "ne fait rien", c'est presque toujours une erreur JS
+// qui a interrompu le script : maintenant on la verra.)
+window.onerror = function (message) {
+  const zone = document.getElementById("erreur-globale");
+  if (zone) {
+    zone.textContent = "Erreur : " + message;
+    zone.classList.remove("invisible");
+  }
+};
+
 // ============================================================
-// PARTIE 1 : CHARGER ET CHERCHER
+// PARTIE 1 : AFFICHER / MASQUER (mécanisme unique et fiable)
+// ============================================================
+
+function montrer(id)   { document.getElementById(id).classList.remove("invisible"); }
+function cacher(id)    { document.getElementById(id).classList.add("invisible"); }
+
+// ============================================================
+// PARTIE 2 : CHARGER ET CHERCHER
 // ============================================================
 
 async function chargerLivres() {
@@ -121,32 +137,53 @@ function remplirFiltres() {
 }
 
 // ============================================================
-// PARTIE 2 : LA MODALE D'AJOUT
+// PARTIE 3 : LA FENÊTRE D'AJOUT (corrigée)
 // ============================================================
 
 function ouvrirAjout() {
-  document.getElementById("modale").hidden = false;
+  montrer("modale");
   afficherVue("scan");
 }
 
 function fermerAjout() {
   arreterScan();
-  document.getElementById("modale").hidden = true;
+  cacher("modale");
 }
 
 function afficherVue(nom) {
-  for (const v of ["scan", "verdict", "formulaire"]) {
-    document.getElementById("vue-" + v).hidden = (v !== nom);
-  }
-  if (nom === "scan") demarrerScan(); else arreterScan();
+  // On masque les 3 vues puis on en montre une seule : impossible
+  // d'arriver dans un état incohérent (2 vues visibles, etc.)
+  cacher("vue-scan");
+  cacher("vue-verdict");
+  cacher("vue-formulaire");
+  montrer("vue-" + nom);
+  arreterScan();
 }
 
+// Cliquer sur le fond sombre (en dehors du contenu) ferme aussi la fenêtre
+document.addEventListener("click", function (e) {
+  const modale = document.getElementById("modale");
+  if (!modale.classList.contains("invisible") && e.target === modale) {
+    fermerAjout();
+  }
+});
+
 // ============================================================
-// PARTIE 3 : LE SCAN DE CODE-BARRES
+// PARTIE 4 : LE SCAN DE CODE-BARRES
 // ============================================================
 
-function demarrerScan() {
+// La caméra ne démarre plus automatiquement : bouton explicite,
+// comme ça pas de surprise à l'ouverture et pas d'erreur silencieuse.
+function demarrerScanManuel() {
+  const etat = document.getElementById("etat-scan");
+
+  if (typeof Html5Qrcode === "undefined") {
+    etat.textContent = "⚠️ Bibliothèque de scan non chargée (connexion internet ?). Utilise la saisie manuelle ci-dessous.";
+    return;
+  }
   if (scanner) return;
+
+  etat.textContent = "Caméra en cours de démarrage… autorise l'accès si demandé.";
   scanner = new Html5Qrcode("lecteur");
   scanner.start(
     { facingMode: "environment" },
@@ -156,34 +193,42 @@ function demarrerScan() {
       chercherISBN(isbn);
     },
     () => {}
-  ).catch(() => { /* caméra refusée/indisponible : ISBN manuel possible */ });
+  ).then(function () {
+    etat.textContent = "Vise le code-barres au dos du livre 📖";
+    montrer("btn-stop-scan");
+  }).catch(function (err) {
+    scanner = null;
+    etat.textContent = "⚠️ Caméra indisponible (" + err + "). Utilise la saisie manuelle ci-dessous.";
+  });
 }
 
 function arreterScan() {
   if (!scanner) return;
-  scanner.stop().then(() => { scanner.clear(); scanner = null; })
-    .catch(() => { scanner = null; });
+  try {
+    scanner.stop().then(function () { scanner.clear(); scanner = null; })
+      .catch(function () { scanner = null; });
+  } catch (e) { scanner = null; }
   document.getElementById("lecteur").innerHTML = "";
+  cacher("btn-stop-scan");
+}
+
+function chercherISBNManuel() {
+  const isbn = document.getElementById("isbn-manuel").value.trim();
+  chercherISBN(isbn);
 }
 
 // ============================================================
-// PARTIE 4 : RETROUVER UN LIVRE À PARTIR DE SON ISBN
+// PARTIE 5 : RETROUVER UN LIVRE À PARTIR DE SON ISBN (cascade)
 // ============================================================
 
-// ---- Source 1 : Google Books (meilleure couverture du français) ----
-// L'API répond en JSON : volumeInfo contient titre, auteurs, éditeur.
-// Remarque : un même livre peut avoir plusieurs éditions ; on prend
-// celle qui correspond exactement à l'ISBN scanné.
 async function chercherSurGoogleBooks(isbn) {
-  const url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + isbn + "&country=FR";
-  const reponse = await fetch(url);
+  const reponse = await fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:" + isbn + "&country=FR");
   if (!reponse.ok) return null;
   const donnees = await reponse.json();
   if (!donnees.items || !donnees.items.length) return null;
   const v = donnees.items[0].volumeInfo;
   return {
     titre: v.title || "",
-    // "authors" est un tableau : on prend tous les auteurs, séparés par ", "
     auteur: (v.authors || []).join(", "),
     editeur: v.publisher || "",
     isbn: isbn,
@@ -191,7 +236,6 @@ async function chercherSurGoogleBooks(isbn) {
   };
 }
 
-// ---- Source 2 : Open Library (secours) ----
 async function chercherSurOpenLibrary(isbn) {
   const reponse = await fetch("https://openlibrary.org/isbn/" + isbn + ".json");
   if (!reponse.ok) return null;
@@ -212,10 +256,7 @@ async function chercherSurOpenLibrary(isbn) {
   return infos.titre ? infos : null;
 }
 
-// ---- La cascade : on essaie chaque source l'une après l'autre ----
 async function trouverInfosLivre(isbn) {
-  // Chaque tentative est entourée d'un try/catch : si une source est
-  // en panne, on passe silencieusement à la suivante au lieu de planter.
   const sources = [chercherSurGoogleBooks, chercherSurOpenLibrary];
   for (const source of sources) {
     try {
@@ -226,9 +267,9 @@ async function trouverInfosLivre(isbn) {
   return { titre: "", auteur: "", editeur: "", isbn: isbn, source: "" };
 }
 
-// ---- Le grand orchestrateur : que faire d'un ISBN scanné ? ----
 async function chercherISBN(isbn) {
   isbn = (isbn || "").replace(/\D/g, "");
+  document.getElementById("isbn-manuel").value = "";
   if (isbn.length < 9) {
     alert("ISBN invalide");
     afficherVue("scan");
@@ -250,7 +291,6 @@ async function chercherISBN(isbn) {
     return;
   }
 
-  // Non possédé : lancer la cascade de recherche
   verdict.className = "nouveau";
   verdict.innerHTML = "<h2>➕ Non répertorié</h2><p>Recherche des informations du livre…</p>";
   afficherVue("verdict");
@@ -282,17 +322,17 @@ function preparerFormulaire() {
   document.getElementById("f-niveau").value = "Maternelle (album)";
   document.getElementById("f-theme").value = "";
   document.getElementById("f-emplacement").value = "";
-  document.getElementById("erreur-ajout").hidden = true;
+  cacher("erreur-ajout");
   afficherVue("formulaire");
 }
 
 // ============================================================
-// PARTIE 5 : ENREGISTRER DANS LA GOOGLE SHEET
+// PARTIE 6 : ENREGISTRER DANS LA GOOGLE SHEET
 // ============================================================
 
 async function enregistrerLivre() {
   const erreur = document.getElementById("erreur-ajout");
-  erreur.hidden = true;
+  cacher("erreur-ajout");
 
   const livre = {
     titre: document.getElementById("f-titre").value.trim(),
@@ -306,12 +346,12 @@ async function enregistrerLivre() {
 
   if (!livre.titre) {
     erreur.textContent = "Le titre est obligatoire.";
-    erreur.hidden = false;
+    montrer("erreur-ajout");
     return;
   }
   if (typeof SCRIPT_URL === "undefined" || SCRIPT_URL === "A_COLLER_ICI_APPS_SCRIPT") {
     erreur.textContent = "⚠️ SCRIPT_URL n'est pas encore configuré dans config.js.";
-    erreur.hidden = false;
+    montrer("erreur-ajout");
     return;
   }
 
@@ -333,7 +373,7 @@ async function enregistrerLivre() {
     fermerAjout();
   } catch (e) {
     erreur.textContent = "Échec de l'enregistrement : " + e.message;
-    erreur.hidden = false;
+    montrer("erreur-ajout");
   }
 }
 
@@ -342,6 +382,11 @@ async function enregistrerLivre() {
 // ============================================================
 
 async function demarrer() {
+  // Sécurité finale : la fenêtre d'ajout est TOUJOURS fermée au démarrage,
+  // quoi qu'il arrive (même si le HTML a été mal enregistré).
+  cacher("modale");
+  document.getElementById("version").textContent = VERSION;
+
   try {
     await chargerLivres();
     remplirFiltres();
@@ -350,7 +395,7 @@ async function demarrer() {
     document.getElementById("compteur").textContent =
       e.message === "config"
         ? "⚠️ Il faut configurer config.js"
-        : "⚠️ Impossible de charger la bibliothèque.";
+        : "⚠️ Impossible de charger la bibliothèque : " + e.message;
   }
   document.getElementById("recherche").addEventListener("input", afficher);
 }

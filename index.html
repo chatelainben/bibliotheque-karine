@@ -7,13 +7,13 @@
   <title>Bibliothèque de Karine</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
-  <!-- Bibliothèque de lecture de code-barres (elle gère la caméra pour nous) -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
   <header>
-    <h1>📚 Bibliothèque de Karine</h1>
+    <h1>📚 Bibliothèque de Karine <small id="version">v4</small></h1>
     <p id="compteur">Chargement…</p>
+    <p id="erreur-globale" class="invisible"></p>
   </header>
 
   <main>
@@ -27,29 +27,32 @@
     <p id="vide" hidden>Aucun livre ne correspond à cette recherche.</p>
   </main>
 
-  <!-- Bouton flottant : ajouter un livre -->
   <button id="btn-ajouter" onclick="ouvrirAjout()">➕ Ajouter</button>
 
-  <!-- Fenêtre (modale) d'ajout d'un livre -->
-  <div id="modale" hidden>
-    <div class="modale-contenu">
+  <!-- Fenêtre d'ajout : invisible par défaut grâce à la classe CSS "invisible" -->
+  <div id="modale" class="invisible">
+    <div class="modale-contenu" id="fond-modale">
 
-      <div id="vue-scan">
+      <div id="vue-scan" class="invisible">
         <h2>Scanner le code-barres</h2>
+        <p id="etat-scan">Appuie sur "Démarrer la caméra" (autorise l'accès si demandé).</p>
+        <button id="btn-demarrer-scan" class="principal" onclick="demarrerScanManuel()">📷 Démarrer la caméra</button>
         <div id="lecteur"></div>
-        <button id="btn-stop-scan" hidden onclick="arreterScan()">Arrêter la caméra</button>
+        <button id="btn-stop-scan" class="invisible" onclick="arreterScan()">Arrêter la caméra</button>
         <p class="indication">Ou saisis un ISBN à la main :</p>
         <input id="isbn-manuel" inputmode="numeric" placeholder="Ex. 9782070584390">
-        <button id="btn-isbn-manuel" onclick="chercherISBN(document.getElementById('isbn-manuel').value.trim())">OK</button>
+        <button onclick="chercherISBNManuel()">OK</button>
       </div>
 
-      <div id="vue-verdict" hidden>
-        <!-- Ici s'affiche : "déjà possédé ✅" ou les infos trouvées -->
+      <div id="vue-verdict" class="invisible">
         <div id="verdict"></div>
-        <button onclick="afficherVue('scan')">↩️ Scanner un autre</button>
+        <div class="boutons">
+          <button onclick="afficherVue('scan')">↩️ Scanner un autre</button>
+          <button class="fermer" onclick="fermerAjout()">✖ Fermer</button>
+        </div>
       </div>
 
-      <div id="vue-formulaire" hidden>
+      <div id="vue-formulaire" class="invisible">
         <h2>Nouveau livre</h2>
         <label>Titre *<input id="f-titre"></label>
         <label>Auteur<input id="f-auteur"></label>
@@ -66,14 +69,14 @@
         <label>Thème<input id="f-theme" list="liste-themes"></label>
         <datalist id="liste-themes"></datalist>
         <label>Emplacement<input id="f-emplacement" placeholder="Ex. étagère salon, boîte 3"></label>
-        <p id="erreur-ajout" hidden></p>
+        <p id="erreur-ajout" class="invisible"></p>
         <div class="boutons">
           <button class="principal" onclick="enregistrerLivre()">💾 Enregistrer</button>
           <button onclick="afficherVue('scan')">↩️ Retour au scan</button>
+          <button onclick="fermerAjout()">✖ Fermer</button>
         </div>
       </div>
 
-      <button class="fermer" onclick="fermerAjout()">✖ Fermer</button>
     </div>
   </div>
 
