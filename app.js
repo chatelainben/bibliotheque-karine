@@ -1,16 +1,15 @@
 // ============================================================
-// APP.JS - v4 : corrections d'affichage + diagnostic + cascade ISBN
+// APP.JS - v5 : vérification "déjà possédé" en TEMPS RÉEL
 // ============================================================
+// Correction v5 : la liste affichée vient du CSV publié, que Google
+// met en cache plusieurs minutes. Au scan, on ne se contente plus de
+// cette photo périmée : on redemande la base en direct à Apps Script.
 
-const VERSION = "v4";
+const VERSION = "v5";
 
 let livres = [];
 let scanner = null;
 
-// ---- Filet de sécurité global : si une erreur JavaScript se produit
-// n'importe où, on l'affiche à l'écran au lieu de rester dans le vide.
-// (Un bouton qui "ne fait rien", c'est presque toujours une erreur JS
-// qui a interrompu le script : maintenant on la verra.)
 window.onerror = function (message) {
   const zone = document.getElementById("erreur-globale");
   if (zone) {
@@ -20,14 +19,36 @@ window.onerror = function (message) {
 };
 
 // ============================================================
-// PARTIE 1 : AFFICHER / MASQUER (mécanisme unique et fiable)
+// AFFICHER / MASQUER
 // ============================================================
 
 function montrer(id)   { document.getElementById(id).classList.remove("invisible"); }
 function cacher(id)    { document.getElementById(id).classList.add("invisible"); }
 
 // ============================================================
-// PARTIE 2 : CHARGER ET CHERCHER
+// OUTILS
+// ============================================================
+
+function echapper(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function normaliser(s) {
+  return (s || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Un ISBN peut s'écrire 978-2-211-… ou 978 2 211… : pour comparer
+// deux ISBN, on ne garde QUE les chiffres des deux côtés.
+function isbnChiffres(s) {
+  return (s || "").replace(/\D/g, "");
+}
+
+// ============================================================
+// CHARGER ET CHERCHER
 // ============================================================
 
 async function chargerLivres() {
@@ -64,17 +85,32 @@ function parserCSV(texte) {
   return resultat;
 }
 
-function normaliser(s) {
-  return (s || "").toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/['’-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function rechercheCorrespond(livre, q) {
   const cible = normaliser(livre.titre + " " + livre.auteur + " " + livre.editeur + " " + livre.isbn);
   return q.split(" ").every(mot => cible.includes(mot));
+}
+
+// NOUVEAUTÉ v5 : recharger la base EN DIRECT depuis Apps Script
+// (lecture de la vraie sheet, sans le cache du CSV publié).
+async function rafraichirEnDirect() {
+  if (typeof SCRIPT_URL === "undefined" ||
+      SCRIPT_URL === "A_COLLER_ICI_APPS_SCRIPT" || SCRIPT_URL.indexOf("http") !== 0) {
+    return false; // pas configuré : on reste sur la liste locale
+  }
+  try {
+    const reponse = await fetch(SCRIPT_URL, { method: "GET" });
+    if (!reponse.ok) return false;
+    const donnees = await reponse.json();
+    if (donnees && donnees.livres && donnees.livres.length) {
+      // On remplace la liste locale par les données toutes fraîches,
+      // et on rafraîchit l'affichage (compteur, filtres, liste).
+      livres = donnees.livres;
+      remplirFiltres();
+      afficher();
+      return true;
+    }
+  } catch (e) { /* réseau indisponible : on garde la liste locale */ }
+  return false;
 }
 
 function afficher() {
@@ -93,8 +129,8 @@ function afficher() {
   for (const l of resultats) {
     const li = document.createElement("li");
     li.className = "livre";
-    const qChiffres = q.replace(/\s/g, "");
-    if (/^\d{9,13}$/.test(qChiffres) && l.isbn && normaliser(l.isbn) === qChiffres) {
+    const qChiffres = isbnChiffres(q);
+    if (/^\d{9,13}$/.test(qChiffres) && isbnChiffres(l.isbn) === qChiffres && qChiffres.length >= 9) {
       li.classList.add("deja-possede");
     }
     const meta = [];
@@ -116,19 +152,17 @@ function afficher() {
       : livres.length + " livres référencés";
 }
 
-function echapper(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 function remplirFiltres() {
   const paires = [["filtre-theme", "theme"], ["filtre-niveau", "niveau"]];
   for (const [id, cle] of paires) {
     const select = document.getElementById(id);
+    select.innerHTML = "<option value=\"\">" + (id === "filtre-theme" ? "Tous les thèmes" : "Tous les niveaux") + "</option>";
     for (const v of [...new Set(livres.map(l => l[cle]).filter(Boolean))].sort()) {
       const option = document.createElement("option");
       option.value = v; option.textContent = v;
       select.appendChild(option);
     }
+    select.value = "";
     select.addEventListener("change", afficher);
   }
   document.getElementById("liste-themes").innerHTML =
@@ -137,7 +171,7 @@ function remplirFiltres() {
 }
 
 // ============================================================
-// PARTIE 3 : LA FENÊTRE D'AJOUT (corrigée)
+// LA FENÊTRE D'AJOUT
 // ============================================================
 
 function ouvrirAjout() {
@@ -151,8 +185,6 @@ function fermerAjout() {
 }
 
 function afficherVue(nom) {
-  // On masque les 3 vues puis on en montre une seule : impossible
-  // d'arriver dans un état incohérent (2 vues visibles, etc.)
   cacher("vue-scan");
   cacher("vue-verdict");
   cacher("vue-formulaire");
@@ -160,7 +192,6 @@ function afficherVue(nom) {
   arreterScan();
 }
 
-// Cliquer sur le fond sombre (en dehors du contenu) ferme aussi la fenêtre
 document.addEventListener("click", function (e) {
   const modale = document.getElementById("modale");
   if (!modale.classList.contains("invisible") && e.target === modale) {
@@ -169,11 +200,9 @@ document.addEventListener("click", function (e) {
 });
 
 // ============================================================
-// PARTIE 4 : LE SCAN DE CODE-BARRES
+// LE SCAN DE CODE-BARRES
 // ============================================================
 
-// La caméra ne démarre plus automatiquement : bouton explicite,
-// comme ça pas de surprise à l'ouverture et pas d'erreur silencieuse.
 function demarrerScanManuel() {
   const etat = document.getElementById("etat-scan");
 
@@ -218,7 +247,7 @@ function chercherISBNManuel() {
 }
 
 // ============================================================
-// PARTIE 5 : RETROUVER UN LIVRE À PARTIR DE SON ISBN (cascade)
+// RETROUVER UN LIVRE À PARTIR DE SON ISBN
 // ============================================================
 
 async function chercherSurGoogleBooks(isbn) {
@@ -267,8 +296,9 @@ async function trouverInfosLivre(isbn) {
   return { titre: "", auteur: "", editeur: "", isbn: isbn, source: "" };
 }
 
+// ---- LE GRAND ORCHESTRATEUR (cœur de la correction v5) ----
 async function chercherISBN(isbn) {
-  isbn = (isbn || "").replace(/\D/g, "");
+  isbn = isbnChiffres(isbn);
   document.getElementById("isbn-manuel").value = "";
   if (isbn.length < 9) {
     alert("ISBN invalide");
@@ -276,11 +306,26 @@ async function chercherISBN(isbn) {
     return;
   }
 
-  // 1er réflexe : l'a-t-on déjà ?
-  const deja = livres.find(l => normaliser(l.isbn) === isbn);
-  const verdict = document.getElementById("verdict");
+  // Étape 1 : l'a-t-on déjà, dans la liste locale ?
+  let deja = livres.find(l => isbnChiffres(l.isbn) === isbn);
+
+  // Étape 2 (NOUVEAUTÉ v5) : pas trouvé ? La liste locale vient du CSV
+  // publié, qui peut être périmé de plusieurs minutes. On redemande la
+  // base EN DIRECT avant de conclure "non répertorié".
+  if (!deja) {
+    const verdict = document.getElementById("verdict");
+    verdict.className = "nouveau";
+    verdict.innerHTML = "<h2>Vérification en direct…</h2><p>On interroge la bibliothèque à jour.</p>";
+    afficherVue("verdict");
+
+    const ok = await rafraichirEnDirect();
+    if (ok) {
+      deja = livres.find(l => isbnChiffres(l.isbn) === isbn);
+    }
+  }
 
   if (deja) {
+    const verdict = document.getElementById("verdict");
     verdict.className = "possede";
     verdict.innerHTML =
       "<h2>✅ Déjà possédé !</h2>" +
@@ -291,6 +336,8 @@ async function chercherISBN(isbn) {
     return;
   }
 
+  // Étape 3 : vraiment non possédé -> cascade de recherche d'infos
+  const verdict = document.getElementById("verdict");
   verdict.className = "nouveau";
   verdict.innerHTML = "<h2>➕ Non répertorié</h2><p>Recherche des informations du livre…</p>";
   afficherVue("verdict");
@@ -327,7 +374,7 @@ function preparerFormulaire() {
 }
 
 // ============================================================
-// PARTIE 6 : ENREGISTRER DANS LA GOOGLE SHEET
+// ENREGISTRER (avec garde-fou anti-doublon)
 // ============================================================
 
 async function enregistrerLivre() {
@@ -338,7 +385,7 @@ async function enregistrerLivre() {
     titre: document.getElementById("f-titre").value.trim(),
     auteur: document.getElementById("f-auteur").value.trim(),
     editeur: document.getElementById("f-editeur").value.trim(),
-    isbn: document.getElementById("f-isbn").value.trim(),
+    isbn: isbnChiffres(document.getElementById("f-isbn").value),
     niveau: document.getElementById("f-niveau").value,
     theme: document.getElementById("f-theme").value.trim(),
     emplacement: document.getElementById("f-emplacement").value.trim()
@@ -351,6 +398,13 @@ async function enregistrerLivre() {
   }
   if (typeof SCRIPT_URL === "undefined" || SCRIPT_URL === "A_COLLER_ICI_APPS_SCRIPT") {
     erreur.textContent = "⚠️ SCRIPT_URL n'est pas encore configuré dans config.js.";
+    montrer("erreur-ajout");
+    return;
+  }
+
+  // Garde-fou : refuser d'enregistrer un ISBN déjà dans la base.
+  if (livre.isbn.length >= 9 && livres.some(l => isbnChiffres(l.isbn) === livre.isbn)) {
+    erreur.textContent = "⚠️ Ce ISBN est déjà dans la bibliothèque ! (fais un scan de vérification)";
     montrer("erreur-ajout");
     return;
   }
@@ -382,8 +436,6 @@ async function enregistrerLivre() {
 // ============================================================
 
 async function demarrer() {
-  // Sécurité finale : la fenêtre d'ajout est TOUJOURS fermée au démarrage,
-  // quoi qu'il arrive (même si le HTML a été mal enregistré).
   cacher("modale");
   document.getElementById("version").textContent = VERSION;
 
